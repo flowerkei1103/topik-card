@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TOPIK 文法 </title>
+<title>TOPIK 文法 Flashcard</title>
 <style>
 body{background:#f4efe8;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px}
 h1{text-align:center}
@@ -19,21 +19,26 @@ button{background:#a79bb5;color:#fff;border:none;padding:10px 16px;border-radius
 .option{display:block;margin:8px auto;padding:10px;border-radius:10px;border:1px solid #ccc;width:260px;cursor:pointer}
 .correct{background:#bfe6bf}
 .wrong{background:#f3b3b3}
-#addBox{display:none;margin-top:20px;text-align:center}
+#addBox,#manageBox{display:none;margin-top:20px;text-align:center}
 input,textarea{width:260px;margin:6px;padding:6px}
+.manage-item{background:#fff;padding:10px;margin:6px auto;border-radius:10px;width:280px;display:flex;justify-content:space-between;align-items:center}
+.delBtn{background:#e57373;padding:6px 10px;border-radius:8px;font-size:12px}
 </style>
 </head>
 <body>
-<h1>TOPIK 文法 </h1>
+<h1>TOPIK 文法 Flashcard</h1>
 <div class="controls">
 <button onclick="newCards()">今日新題</button>
 <button onclick="startQuiz()">測驗模式</button>
 <button onclick="exportData()">匯出備份</button>
-<button onclick="importData()">匯入備份</button> <input type="file" id="importFile" accept="application/json" style="display:none" onchange="handleImport(event)">
+<button onclick="importData()">匯入備份</button>
 <button onclick="showAdd()">加入文法</button>
+<button onclick="showManage()">管理模式</button>
+<input type="file" id="importFile" accept="application/json" style="display:none" onchange="handleImport(event)">
 </div>
 <div id="cardArea" class="cards"></div>
 <div id="quizArea" class="quiz"></div>
+
 <div id="addBox">
 <h3>加入新文法</h3>
 <input id="g" placeholder="文法"><br>
@@ -41,57 +46,49 @@ input,textarea{width:260px;margin:6px;padding:6px}
 <textarea id="e" placeholder="例句"></textarea><br>
 <button onclick="addGrammar()">儲存</button>
 </div>
+
+<div id="manageBox">
+<h3>管理自訂文法</h3>
+<div id="manageList"></div>
+</div>
+
 <script>
 let base=[{name:'N이다/아니다',meaning:'判斷',ex:'저는 학생이에요.'},{name:'N도',meaning:'也',ex:'저도 가요.'},{name:'-고 싶다',meaning:'想做',ex:'가고 싶어요.'},{name:'-지만',meaning:'但是',ex:'비싸지만 좋아요.'},{name:'-아서/어서',meaning:'原因',ex:'아파서 쉬어요.'}];
 let user=JSON.parse(localStorage.getItem('userGrammar')||'[]');
 let wrong=JSON.parse(localStorage.getItem('wrong')||'[]');
-let todayKey='done-'+new Date().toDateString();
-let done=JSON.parse(localStorage.getItem(todayKey)||'[]');
 function pool(){return [...base,...user];}
 let currentCards=[];
-function newCards(){document.getElementById('addBox').style.display='none';document.getElementById('cardArea').style.display='grid';let p=pool();currentCards=p.sort(()=>Math.random()-0.5).slice(0,5);renderCards();document.getElementById('quizArea').innerHTML='';}
+
+function resetView(){
+ document.getElementById('cardArea').style.display='grid';
+ document.getElementById('addBox').style.display='none';
+ document.getElementById('manageBox').style.display='none';
+ document.getElementById('quizArea').innerHTML='';
+}
+
+function newCards(){resetView();let p=pool();currentCards=p.sort(()=>Math.random()-0.5).slice(0,5);renderCards();}
+
 function renderCards(){const a=document.getElementById('cardArea');a.innerHTML='';currentCards.forEach(g=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<div class='front'><b>${g.name}</b></div><div class='back'>${g.meaning}<br>${g.ex}</div>`;d.onclick=()=>d.classList.toggle('flip');a.appendChild(d);});}
-function startQuiz(){if(currentCards.length===0)newCards();document.getElementById('cardArea').style.display='none';document.getElementById('addBox').style.display='none';let i=0;const area=document.getElementById('quizArea');function ask(){if(i>=currentCards.length){area.innerHTML='<h3>完成</h3>';document.getElementById('cardArea').style.display='grid';return}const q=currentCards[i];let opts=pool().filter(x=>x.name!==q.name).sort(()=>Math.random()-0.5).slice(0,3);opts=[q,...opts].sort(()=>Math.random()-0.5);area.innerHTML=`<h3>「${q.meaning}」最適合的文法是？</h3>`;opts.forEach(op=>{const b=document.createElement('div');b.className='option';b.textContent=op.name;b.onclick=()=>{if(op.name===q.name){b.classList.add('correct')}else{b.classList.add('wrong')}setTimeout(()=>{i++;ask()},600)};area.appendChild(b);});}ask();}
-function showAdd(){document.getElementById('cardArea').style.display='none';document.getElementById('quizArea').innerHTML='';document.getElementById('addBox').style.display='block'}
-function addGrammar(){let g=document.getElementById('g').value.trim(),m=document.getElementById('m').value.trim(),e=document.getElementById('e').value.trim();if(!g||!m){alert('請填寫文法與解釋');return;}if(pool().some(x=>x.name===g)){alert('此文法已加入過：'+g);return;}user.push({name:g,meaning:m,ex:e});localStorage.setItem('userGrammar',JSON.stringify(user));alert('已加入');}
-function exportData(){
- let data={user,wrong};
- let blob=new Blob([JSON.stringify(data)],{type:'application/json'});
- let a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='topik_backup.json';
- a.click();
-}
 
-function importData(){
- document.getElementById('importFile').click();
-}
+function startQuiz(){if(currentCards.length===0)newCards();document.getElementById('cardArea').style.display='none';document.getElementById('addBox').style.display='none';document.getElementById('manageBox').style.display='none';let i=0;const area=document.getElementById('quizArea');function ask(){if(i>=currentCards.length){area.innerHTML='<h3>完成</h3>';document.getElementById('cardArea').style.display='grid';return}const q=currentCards[i];let opts=pool().filter(x=>x.name!==q.name).sort(()=>Math.random()-0.5).slice(0,3);opts=[q,...opts].sort(()=>Math.random()-0.5);area.innerHTML=`<h3>「${q.meaning}」最適合的文法是？</h3>`;opts.forEach(op=>{const b=document.createElement('div');b.className='option';b.textContent=op.name;b.onclick=()=>{if(op.name===q.name){b.classList.add('correct')}else{b.classList.add('wrong')}setTimeout(()=>{i++;ask()},600)};area.appendChild(b);});}ask();}
 
-function handleImport(event){
- const file=event.target.files[0];
- if(!file)return;
- const reader=new FileReader();
- reader.onload=function(e){
-   try{
-     const data=JSON.parse(e.target.result);
-     user=data.user||[];
-     wrong=data.wrong||[];
-     localStorage.setItem('userGrammar',JSON.stringify(user));
-     localStorage.setItem('wrong',JSON.stringify(wrong));
-     // 清除所有今日紀錄
-     Object.keys(localStorage).forEach(k=>{
-       if(k.startsWith('done-')) localStorage.removeItem(k);
-     });
-     alert('匯入完成（已覆蓋舊資料）');
-     location.reload();
-   }catch(err){
-     alert('檔案錯誤');
-   }
- };
- reader.readAsText(file);
-}
+function showAdd(){document.getElementById('cardArea').style.display='none';document.getElementById('manageBox').style.display='none';document.getElementById('addBox').style.display='block';}
+
+function addGrammar(){let g=document.getElementById('g').value.trim(),m=document.getElementById('m').value.trim(),e=document.getElementById('e').value.trim();if(!g||!m){alert('請填寫文法與解釋');return;}if(pool().some(x=>x.name===g)){alert('此文法已加入過：'+g);return;}user.push({name:g,meaning:m,ex:e});localStorage.setItem('userGrammar',JSON.stringify(user));alert('已加入');document.getElementById('g').value='';document.getElementById('m').value='';document.getElementById('e').value='';}
+
+function showManage(){document.getElementById('cardArea').style.display='none';document.getElementById('addBox').style.display='none';document.getElementById('manageBox').style.display='block';renderManage();}
+
+function renderManage(){const list=document.getElementById('manageList');list.innerHTML='';if(user.length===0){list.innerHTML='<p>目前沒有自訂文法</p>';return;}user.forEach((g,index)=>{const div=document.createElement('div');div.className='manage-item';div.innerHTML=`<span>${g.name}</span>`;const btn=document.createElement('button');btn.textContent='刪除';btn.className='delBtn';btn.onclick=()=>deleteGrammar(index);div.appendChild(btn);list.appendChild(div);});}
+
+function deleteGrammar(index){if(!confirm('確定刪除？'))return;user.splice(index,1);localStorage.setItem('userGrammar',JSON.stringify(user));renderManage();}
+
+function exportData(){let data={user,wrong};let blob=new Blob([JSON.stringify(data)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='topik_backup.json';a.click();}
+
+function importData(){document.getElementById('importFile').click();}
+
+function handleImport(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(e){try{const data=JSON.parse(e.target.result);user=data.user||[];wrong=data.wrong||[];localStorage.setItem('userGrammar',JSON.stringify(user));localStorage.setItem('wrong',JSON.stringify(wrong));alert('匯入完成（已覆蓋舊資料）');location.reload();}catch(err){alert('檔案錯誤');}};reader.readAsText(file);} 
+
 newCards();
 </script>
 </body>
 </html>
-
